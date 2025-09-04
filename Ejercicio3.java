@@ -8,7 +8,7 @@ public class Ejercicio3 {
             System.out.println(arreglo[i]);
         }
 
-        // Inserción en índice (simulado con ArrayList para facilidad)
+        // Inserción en índice 
         java.util.ArrayList<Integer> lista = new java.util.ArrayList<>();
         lista.add(10);
         lista.add(20);
