@@ -1,0 +1,13 @@
+arr = [15, 30, 13, 23, 4]
+n = len(arr)
+
+print("Arreglo inicial:", arr)
+
+for i in range(n - 1):
+    print(f"\n--- Pasada {i+1} ---")
+    for j in range(n - i - 1):
+        if arr[j] > arr[j + 1]:
+            arr[j], arr[j + 1] = arr[j + 1], arr[j]
+        print(arr)
+
+print("\nArreglo ordenado:", arr)
