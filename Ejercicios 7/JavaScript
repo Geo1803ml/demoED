@@ -1,0 +1,23 @@
+let arr = [17, 9, 48, 34, 20];
+let n = arr.length;
+
+console.log("Arreglo inicial:", arr.join(", "));
+
+for (let i = 0; i < n - 1; i++) {
+    let minIndex = i;
+
+    for (let j = i + 1; j < n; j++) {
+        if (arr[j] < arr[minIndex]) {
+            minIndex = j;
+        }
+    }
+
+    let temp = arr[i];
+    arr[i] = arr[minIndex];
+    arr[minIndex] = temp;
+
+    console.log(`\n--- Selección ${i+1} ---`);
+    console.log(arr.join(", "));
+}
+
+console.log("\nArreglo ordenado:", arr.join(", "));
