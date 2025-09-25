@@ -1,0 +1,34 @@
+#include <iostream>
+using namespace std;
+
+int main() {
+    const int N = 10;   // cantidad de numeros
+    double numero, suma = 0;
+    double maximo, minimo;
+
+    cout << "Introduce " << N << " numeros:\n";
+
+    for (int i = 0; i < N; i++) {
+        cout << "Numero " << (i+1) << ": ";
+        cin >> numero;
+
+        suma += numero;  // acumulamos la suma
+
+        if (i == 0) {
+            // en el primer número inicializamos max y min
+            maximo = minimo = numero;
+        } else {
+            if (numero > maximo) maximo = numero;
+            if (numero < minimo) minimo = numero;
+        }
+    }
+
+    double promedio = suma / N;
+
+    cout << "\nLa suma de los " << N << " numeros es: " << suma << endl;
+    cout << "El promedio es: " << promedio << endl;
+    cout << "El numero maximo es: " << maximo << endl;
+    cout << "El numero minimo es: " << minimo << endl;
+
+    return 0;
+}
