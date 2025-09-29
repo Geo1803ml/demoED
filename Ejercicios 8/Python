@@ -1,0 +1,30 @@
+def swap(arr, i, j):
+    arr[i], arr[j] = arr[j], arr[i]
+
+def partition(arr, low, high):
+    pivot = arr[high]
+    print(f"  Partition: pivote={pivot} (arr[{high}]) en rango [{low}..{high}] -> {arr[low:high+1]}")
+    i = low - 1
+
+    for j in range(low, high):
+        print(f"    Comparando arr[{j}]={arr[j]} con pivote={pivot}")
+        if arr[j] < pivot:
+            i += 1
+            swap(arr, i, j)
+            print(f"    -> Intercambio arr[{i}] y arr[{j}] -> {arr}")
+    swap(arr, i + 1, high)
+    print(f"    Colocando pivote en posición {i+1} -> {arr}")
+    return i + 1
+
+def quick_sort(arr, low, high):
+    if low < high:
+        print(f"\nQuickSort llamado en: [{low}..{high}] -> {arr[low:high+1]}")
+        pi = partition(arr, low, high)
+        print(f"Partición completada. Pivote en índice {pi}. Estado: {arr}")
+        quick_sort(arr, low, pi - 1)
+        quick_sort(arr, pi + 1, high)
+
+arr = [9, 4, 7, 3, 1, 5]
+print("Arreglo inicial:", arr)
+quick_sort(arr, 0, len(arr)-1)
+print("\nArreglo ordenado:", arr)
