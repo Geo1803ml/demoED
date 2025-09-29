@@ -1,0 +1,53 @@
+using System;
+
+class Program {
+    static void QuickSort(int[] arr, int low, int high) {
+        if (low < high) {
+            Console.WriteLine($"\nQuickSort llamado en: [{low}..{high}] -> {string.Join(", ", SubArray(arr, low, high))}");
+            int pi = Partition(arr, low, high);
+            Console.WriteLine($"Partición completada. Pivote en índice {pi}. Estado: {string.Join(", ", arr)}");
+
+            QuickSort(arr, low, pi - 1);
+            QuickSort(arr, pi + 1, high);
+        }
+    }
+
+    static int Partition(int[] arr, int low, int high) {
+        int pivot = arr[high];
+        Console.WriteLine($"  Partition: pivote={pivot} (arr[{high}]) en rango [{low}..{high}]");
+        int i = low - 1;
+
+        for (int j = low; j < high; j++) {
+            Console.WriteLine($"    Comparando arr[{j}]={arr[j]} con pivote={pivot}");
+            if (arr[j] < pivot) {
+                i++;
+                Swap(arr, i, j);
+                Console.WriteLine($"    -> Intercambio arr[{i}] y arr[{j}] -> {string.Join(", ", arr)}");
+            }
+        }
+
+        Swap(arr, i + 1, high);
+        Console.WriteLine($"    Colocando pivote en posición {i+1} -> {string.Join(", ", arr)}");
+        return i + 1;
+    }
+
+    static void Swap(int[] arr, int a, int b) {
+        int t = arr[a];
+        arr[a] = arr[b];
+        arr[b] = t;
+    }
+
+    static int[] SubArray(int[] arr, int low, int high) {
+        int len = high - low + 1;
+        int[] sub = new int[len];
+        Array.Copy(arr, low, sub, 0, len);
+        return sub;
+    }
+
+    static void Main() {
+        int[] arr = { 34, 7, 23, 32, 5, 62 };
+        Console.WriteLine("Arreglo inicial: " + string.Join(", ", arr));
+        QuickSort(arr, 0, arr.Length - 1);
+        Console.WriteLine("\nArreglo ordenado: " + string.Join(", ", arr));
+    }
+}
