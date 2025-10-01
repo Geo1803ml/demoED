@@ -1,0 +1,26 @@
+function merge(leftArr,rightArr){
+    let result = [], i=0,j=0;
+    while(i<leftArr.length && j<rightArr.length){
+        if(leftArr[i]<=rightArr[j]) result.push(leftArr[i++]);
+        else result.push(rightArr[j++]);
+    }
+    while(i<leftArr.length) result.push(leftArr[i++]);
+    while(j<rightArr.length) result.push(rightArr[j++]);
+    return result;
+}
+
+function mergeSort(arr){
+    if(arr.length<=1) return arr;
+    let mid = Math.floor(arr.length/2);
+    console.log(`Dividiendo: [${arr.slice(0,mid)}] y [${arr.slice(mid)}]`);
+    let left = mergeSort(arr.slice(0,mid));
+    let right = mergeSort(arr.slice(mid));
+    let merged = merge(left,right);
+    console.log(`Merge: [${merged}]`);
+    return merged;
+}
+
+let arr=[12, 37, 52, 4, 8, 64, 15];
+console.log("Arreglo inicial:",arr);
+let sorted = mergeSort(arr);
+console.log("Arreglo ordenado:",sorted);
