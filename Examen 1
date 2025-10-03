@@ -1,0 +1,82 @@
+// Examen 1 (Estructura de datos) (3/10/2025)
+class OrdenamientosYOperaciones
+{
+    // ------------------ 1D ------------------
+
+    // Conteo de Pares/Impares
+    static int ConteoPares(int[] arr)
+    {
+        int count = 0;
+        foreach (var x in arr) if (x % 2 == 0) count++;
+        return count;
+    }
+
+    static int ConteoImpares(int[] arr)
+    {
+        int count = 0;
+        foreach (var x in arr) if (x % 3 == 0) count++;
+        return count;
+    }
+
+
+    // ------------------ 2D ------------------
+
+    // Suma de columnas
+    static int[] SumaColumnas(int[,] mat)
+    {
+        int filas = mat.GetLength(0);
+        int cols = mat.GetLength(1);
+        int[] sumCols = new int[cols];
+        for (int j = 0; j < cols; j++)
+        {
+            int s = 0;
+            for (int i = 0; i < filas; i++) s += mat[i, j];
+            sumCols[j] = s;
+        }
+        return sumCols;
+    }
+    // ------------------ 3D ------------------
+
+    // Buscar valor en 3D
+    static List<(int d, int r, int c)> BuscarValor3D(int[,,] arr3, int valor)
+    {
+        int D = arr3.GetLength(0), R = arr3.GetLength(1), C = arr3.GetLength(2);
+        var found = new List<(int, int, int)>();
+        for (int d = 0; d < D; d++)
+            for (int r = 0; r < R; r++)
+                for (int c = 0; c < C; c++)
+                    if (arr3[d, r, c] == valor) found.Add((d, r, c));
+        return found;
+    }
+
+    static void Main()
+    {
+        Console.WriteLine("EJEMPLOS C#\n");
+
+        // 1D ejemplos
+        int[] v1 = { 1, 2, 4, 2, 6, 8, 0, 4, 10, 3 };
+        Console.WriteLine("Conteo pares: " + ConteoPares(v1));
+        Console.WriteLine("Conteo Impares: " + ConteoImpares(v1));
+
+        // 2D ejemplos(matriz 3x3)
+        int[,] mat = {
+            {1, 4, 7},
+            {3, 8, 2},
+            {6, 9, 0}
+        };
+        Console.WriteLine("Suma por columnas: " + string.Join(", ", SumaColumnas(mat)));
+
+        // 3D ejemplos (3 capas, 3 filas, 3 columnas)
+        int[,,] arr3 = {
+            { {5,2,9}, {8,7,3}, {6,0,7}, },
+            { {4,6,6}, {9,1,5}, {3,1,6}, },
+            { {6,9,0}, {9,1,5}, {6,0,7}, }
+        };
+        Console.WriteLine("\nBuscar valor 9 en 3D:");
+        var coords = BuscarValor3D(arr3, 9);
+        Console.WriteLine(string.Join(", ", coords.Select(t =>$\"(d{t.d},r{t.r},c{t.c})\))) )));
+
+
+        Console.WriteLine("\n--- FIN ejemplos C# ---");
+    }
+}
