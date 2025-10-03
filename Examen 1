@@ -13,9 +13,14 @@ class OrdenamientosYOperaciones
 
     static int ConteoImpares(int[] arr)
     {
-        int count = 0;
-        foreach (var x in arr) if (x % 3 == 0) count++;
-        return count;
+        int contador = 0;
+        foreach (int num in arr)
+        {
+            // Si el número no es divisible entre 2 → es impar
+            if (num % 2 != 0)
+                contador++;
+        }
+        return contador;
     }
 
 
@@ -74,7 +79,7 @@ class OrdenamientosYOperaciones
         };
         Console.WriteLine("\nBuscar valor 9 en 3D:");
         var coords = BuscarValor3D(arr3, 9);
-        Console.WriteLine(string.Join(", ", coords.Select(t =>$\"(d{t.d},r{t.r},c{t.c})\))) )));
+        Console.WriteLine(string.Join(", ", coords.Select(t =>$"(d{t.d},r{t.r},c{t.c}"))));
 
 
         Console.WriteLine("\n--- FIN ejemplos C# ---");
