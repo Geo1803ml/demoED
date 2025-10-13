@@ -1,50 +1,65 @@
 using System;
 
-class HashOrderInsertion {
-    // Función hash simple para enteros (Puede cambiar dependiendo de los valores)
+class HashThenInsertion
+{
     static int Hash(int x, int mod) => Math.Abs(x) % mod;
 
-    // Ordena el arreglo 'arr' según su hash (Ordenamiento por insercion)
-    static int[] HashOrderByInsertion(int[] arr, int mod) {
-        // Trabajamos con pares (hash, valor) en dos arrays paralelos
+    // Ordenamiento por Hash
+    static int[] HashSort(int[] arr, int mod)
+    {
         int n = arr.Length;
         int[] hs = new int[n];
         int[] vals = new int[n];
+        int length = 0;
 
-        int length = 0; // Cuantos elementos en la "lista ordenada" tenemos
-        for (int k = 0; k < n; k++) {
+        for (int k = 0; k < n; k++)
+        {
             int v = arr[k];
             int h = Hash(v, mod);
-
-            // Posición inicial = al final
             int pos = length;
-            // Desplazamos hacia la derecha mientras el elemento anterior tenga hash > h
-            while (pos > 0 && (hs[pos - 1] > h || (hs[pos - 1] == h && vals[pos - 1] > v))) {
-                if (pos < n) { // desplazar en arrays paralelos
-                    hs[pos] = hs[pos - 1];
-                    vals[pos] = vals[pos - 1];
-                }
+            while (pos > 0 && (hs[pos - 1] > h || (hs[pos - 1] == h && vals[pos - 1] > v)))
+            {
+                hs[pos] = hs[pos - 1];
+                vals[pos] = vals[pos - 1];
                 pos--;
             }
-            // Insertar
             hs[pos] = h;
             vals[pos] = v;
             length++;
         }
 
-        // Construir resultado con el orden por hash
-        int[] result = new int[n];
-        for (int i = 0; i < n; i++) result[i] = vals[i];
-        return result;
+        return vals;
     }
 
-    static void Main() {
-        int[] arr = {23, 44, 12, 39, 94, 14, 24, 11, 21, 31};
-        Console.WriteLine("Original: " + string.Join(", ", arr));
-        
-        int mod = 10; // Ejemplo de función hash: x % 10
-        var ordered = HashOrderByInsertion(arr, mod);
+    // Ordenamiento por inserción
+    static void InsertionSort(int[] arr)
+    {
+        for (int i = 1; i < arr.Length; i++)
+        {
+            int key = arr[i];
+            int j = i - 1;
+            while (j >= 0 && arr[j] > key)
+            {
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = key;
+        }
+    }
 
-        Console.WriteLine($"Ordenado por hash: " + string.Join(", ", ordered));
+    static void Main()
+    {
+        int[] arr = { 58, 27, 96, 45, 13, 89, 62, 31, 74, 10 };
+        int mod = 7;
+
+        Console.WriteLine("Original: " + string.Join(", ", arr));
+
+        var hashSorted = HashSort(arr, mod);
+        Console.WriteLine("\nDespués del ordenamiento por hash:");
+        Console.WriteLine(string.Join(", ", hashSorted));
+
+        InsertionSort(hashSorted);
+        Console.WriteLine("\nDespués del ordenamiento por inserción:");
+        Console.WriteLine(string.Join(", ", hashSorted));
     }
 }
