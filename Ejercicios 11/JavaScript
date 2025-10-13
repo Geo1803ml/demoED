@@ -1,0 +1,35 @@
+function hashFunc(x, mod) { return Math.abs(x) % mod; }
+
+function hashSort(arr, mod) {
+  const hs = [], vals = [];
+  for (const v of arr) {
+    const h = hashFunc(v, mod);
+    let pos = hs.length;
+    while (pos > 0 && (hs[pos - 1] > h || (hs[pos - 1] === h && vals[pos - 1] > v))) pos--;
+    hs.splice(pos, 0, h);
+    vals.splice(pos, 0, v);
+  }
+  return vals;
+}
+
+function insertionSort(arr) {
+  for (let i = 1; i < arr.length; i++) {
+    let key = arr[i];
+    let j = i - 1;
+    while (j >= 0 && arr[j] > key) {
+      arr[j + 1] = arr[j];
+      j--;
+    }
+    arr[j + 1] = key;
+  }
+}
+
+// Ejemplo
+const arr = [42, 91, 17, 64, 25, 53, 80, 37, 12, 99];
+const mod = 5;
+
+console.log("Original:", arr);
+const hashSorted = hashSort(arr, mod);
+console.log("\nDespués del ordenamiento por hash:", hashSorted);
+insertionSort(hashSorted);
+console.log("Después del ordenamiento por inserción:", hashSorted);
