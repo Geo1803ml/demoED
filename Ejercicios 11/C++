@@ -1,0 +1,36 @@
+#include <iostream>
+#include <vector>
+#include <cmath>
+using namespace std;
+
+int hash_func(int x, int mod) { return abs(x) % mod; }
+
+vector<int> hash_order_insertion(const vector<int>& arr, int mod) {
+    int n = arr.size();
+    vector<int> hs; hs.reserve(n);
+    vector<int> vals; vals.reserve(n);
+
+    for (int v : arr) {
+        int h = hash_func(v, mod);
+        int pos = hs.size();
+        while (pos > 0 && (hs[pos-1] > h || (hs[pos-1] == h && vals[pos-1] > v))) pos--;
+        hs.insert(hs.begin() + pos, h);
+        vals.insert(vals.begin() + pos, v);
+    }
+    return vals;
+}
+
+int main() {
+    vector<int> arr = {32,56,1,39,94,14,24,9,28,50};
+    cout << "Original: ";
+    for (int x: arr) cout << x << " ";
+    cout << endl;
+
+    int mod = 10;
+    auto ordered = hash_order_insertion(arr, mod);
+
+    cout << "Ordenado por hash: ";
+    for (int x: ordered) cout << x << " ";
+    cout << endl;
+    return 0;
+}
