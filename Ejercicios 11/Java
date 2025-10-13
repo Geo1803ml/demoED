@@ -1,0 +1,27 @@
+import java.util.*;
+
+public class Ejercicio_11 {
+    static int hashFunc(int x, int mod) { return Math.abs(x) % mod; }
+
+    static List<Integer> hashOrderInsertion(int[] arr, int mod) {
+        ArrayList<Integer> hs = new ArrayList<>();
+        ArrayList<Integer> vals = new ArrayList<>();
+
+        for (int v : arr) {
+            int h = hashFunc(v, mod);
+            int pos = hs.size();
+            while (pos > 0 && (hs.get(pos-1) > h || (hs.get(pos-1) == h && vals.get(pos-1) > v))) pos--;
+            hs.add(pos, h);
+            vals.add(pos, v);
+        }
+        return vals;
+    }
+
+    public static void main(String[] args) {
+        int[] arr = {15,30,71,99,63,72,24,83,20,81};
+        System.out.println("Original: " + Arrays.toString(arr));
+        int mod = 10;
+        List<Integer> ordered = hashOrderInsertion(arr, mod);
+        System.out.println("Ordenado por hash (mod " + mod + "): " + ordered);
+    }
+}
