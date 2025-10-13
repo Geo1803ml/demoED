@@ -3,7 +3,7 @@ import java.util.*;
 public class Ejercicio_11 {
     static int hashFunc(int x, int mod) { return Math.abs(x) % mod; }
 
-    static List<Integer> hashOrderInsertion(int[] arr, int mod) {
+    static List<Integer> hashSort(int[] arr, int mod) {
         ArrayList<Integer> hs = new ArrayList<>();
         ArrayList<Integer> vals = new ArrayList<>();
 
@@ -17,11 +17,27 @@ public class Ejercicio_11 {
         return vals;
     }
 
+    static void insertionSort(List<Integer> arr) {
+        for (int i = 1; i < arr.size(); i++) {
+            int key = arr.get(i);
+            int j = i - 1;
+            while (j >= 0 && arr.get(j) > key) {
+                arr.set(j + 1, arr.get(j));
+                j--;
+            }
+            arr.set(j + 1, key);
+        }
+    }
+
     public static void main(String[] args) {
-        int[] arr = {15,30,71,99,63,72,24,83,20,81};
+        int[] arr = {55, 92, 37, 11, 78, 23, 46, 68, 89, 34};
+        int mod = 9;
+
         System.out.println("Original: " + Arrays.toString(arr));
-        int mod = 10;
-        List<Integer> ordered = hashOrderInsertion(arr, mod);
-        System.out.println("Ordenado por hash (mod " + mod + "): " + ordered);
+        List<Integer> hashSorted = hashSort(arr, mod);
+        System.out.println("\nDespués del ordenamiento por hash: " + hashSorted);
+
+        insertionSort(hashSorted);
+        System.out.println("Después del ordenamiento por inserción: " + hashSorted);
     }
 }
