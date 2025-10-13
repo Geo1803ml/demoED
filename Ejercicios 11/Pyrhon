@@ -1,0 +1,23 @@
+def hash_func(x, mod):
+    return abs(x) % mod
+
+def hash_order_insertion(arr, mod):
+    # trabajamos con lista de pares (h, v) insertada el ordenamiento por insercion
+    hs = []
+    vals = []
+    for v in arr:
+        h = hash_func(v, mod)
+        pos = len(hs)
+        # desplazar mientras el anterior tenga hash mayor (o igual y valor mayor)
+        while pos > 0 and (hs[pos-1] > h or (hs[pos-1] == h and vals[pos-1] > v)):
+            pos -= 1
+        hs.insert(pos, h)
+        vals.insert(pos, v)
+    return vals
+
+if __name__ == "__main__":
+    arr = [23,44,12,39,94,14,24,11,21,31]
+    print("Original:", arr)
+    mod = 10
+    ordered = hash_order_insertion(arr, mod)
+    print(f"Ordenado por hash:", ordered)
