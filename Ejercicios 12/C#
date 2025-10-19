@@ -1,0 +1,66 @@
+
+using System;
+using System.Collections.Generic;
+
+class BucketSortStepByStep {
+    static void PrintBuckets(List<int>[] buckets) {
+        for (int i = 0; i < buckets.Length; i++) {
+            Console.Write($"[{i}]:");
+            Console.Write(string.Join(",", buckets[i]));
+            if (i < buckets.Length - 1) Console.Write(" | ");
+        }
+        Console.WriteLine();
+    }
+
+    static void InsertionSortBucket(List<int> bucket, int bucketIdx) {
+        Console.WriteLine($"\nOrdenando bucket {bucketIdx} (inicio): {string.Join(", ", bucket)}");
+        for (int i = 1; i < bucket.Count; i++) {
+            int key = bucket[i];
+            int j = i - 1;
+            Console.WriteLine($"  Insertando key={key} (pos inicial {i})");
+            while (j >= 0 && bucket[j] > key) {
+                Console.WriteLine($"    desplazando {bucket[j]} desde pos {j} a pos {j+1}");
+                bucket[j + 1] = bucket[j];
+                j--;
+            }
+            bucket[j + 1] = key;
+            Console.WriteLine($"  Estado bucket tras insertar {key}: {string.Join(", ", bucket)}");
+        }
+        Console.WriteLine($"Bucket {bucketIdx} ordenado: {string.Join(", ", bucket)}");
+    }
+
+    static int[] BucketSort(int[] arr, int bucketCount) {
+        if (arr.Length == 0) return arr;
+        int mn = arr[0], mx = arr[0];
+        foreach (int v in arr) { if (v < mn) mn = v; if (v > mx) mx = v; }
+        double range = mx - mn + 1;
+        var buckets = new List<int>[bucketCount];
+        for (int i = 0; i < bucketCount; i++) buckets[i] = new List<int>();
+
+        Console.WriteLine("\nDistribución en buckets");
+        for (int k = 0; k < arr.Length; k++) {
+            int v = arr[k];
+            int idx = (int)(((v - mn) / range) * bucketCount);
+            if (idx == bucketCount) idx = bucketCount - 1;
+            buckets[idx].Add(v);
+            Console.WriteLine($"Insertando {v} en bucket {idx}:");
+            PrintBuckets(buckets);
+        }
+
+        Console.WriteLine("\nOrdenando cada bucket con Insertion Sort");
+        var result = new List<int>();
+        for (int i = 0; i < bucketCount; i++) {
+            if (buckets[i].Count > 0) InsertionSortBucket(buckets[i], i);
+            result.AddRange(buckets[i]);
+        }
+
+        return result.ToArray();
+    }
+
+    static void Main() {
+        int[] arr = { 42, 32, 33, 52, 37, 47, 51, 10, 99, 5 };
+        Console.WriteLine("Arreglo original: " + string.Join(", ", arr));
+        int[] sorted = BucketSort(arr, 5);
+        Console.WriteLine("\nArreglo final: " + string.Join(", ", sorted));
+    }
+}
