@@ -1,0 +1,76 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+void printBuckets(const vector<vector<int>>& buckets) {
+    for (size_t i=0;i<buckets.size();++i) {
+        cout << "[" << i << "]:";
+        for (size_t j=0;j<buckets[i].size();++j) {
+            if (j) cout << ",";
+            cout << buckets[i][j];
+        }
+        if (i+1 < buckets.size()) cout << " | ";
+    }
+    cout << "\n";
+}
+
+void insertionSortBucket(vector<int>& bucket, int idx) {
+    cout << "\nOrdenando bucket " << idx << " (inicio): ";
+    for (int x : bucket) cout << x << " ";
+    cout << "\n";
+    for (int i = 1; i < (int)bucket.size(); ++i) {
+        int key = bucket[i];
+        int j = i - 1;
+        cout << "  Insertando key=" << key << " (pos inicial " << i << ")\n";
+        while (j >= 0 && bucket[j] > key) {
+            cout << "    desplazando " << bucket[j] << " desde pos " << j << " a pos " << j+1 << "\n";
+            bucket[j+1] = bucket[j];
+            j--;
+        }
+        bucket[j+1] = key;
+        cout << "  Estado bucket tras insertar " << key << ": ";
+        for (int x : bucket) cout << x << " ";
+        cout << "\n";
+    }
+    cout << "Bucket " << idx << " ordenado: ";
+    for (int x : bucket) cout << x << " ";
+    cout << "\n";
+}
+
+vector<int> bucketSortStep(const vector<int>& arr, int bucketCount) {
+    if (arr.empty()) return {};
+    int mn = *min_element(arr.begin(), arr.end());
+    int mx = *max_element(arr.begin(), arr.end());
+    double range = (mx - mn + 1.0);
+    vector<vector<int>> buckets(bucketCount);
+
+    cout << "\nDistribución en buckets\n";
+    for (int v : arr) {
+        int idx = (int)(((v - mn) / range) * bucketCount);
+        if (idx == bucketCount) idx = bucketCount - 1;
+        buckets[idx].push_back(v);
+        cout << "Insertando " << v << " en bucket " << idx << ":\n";
+        printBuckets(buckets);
+    }
+
+    cout << "\nOrdenando cada bucket con Insertion Sort\n";
+    vector<int> result;
+    for (int i = 0; i < bucketCount; ++i) {
+        if (!buckets[i].empty()) insertionSortBucket(buckets[i], i);
+        result.insert(result.end(), buckets[i].begin(), buckets[i].end());
+    }
+    return result;
+}
+
+int main() {
+    vector<int> arr = { 88, 12, 45, 33, 27, 91, 2, 71, 60, 49 };
+    cout << "\n Arreglo original: ";
+    for (int x : arr) cout << x << " ";
+    cout << "\n";
+    auto sorted = bucketSortStep(arr, 6);
+    cout << "\nArreglo final: ";
+    for (int x : sorted) cout << x << " ";
+    cout << "\n";
+    return 0;
+}
