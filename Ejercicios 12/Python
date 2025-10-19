@@ -1,0 +1,45 @@
+def print_buckets(buckets):
+    print(" | ".join(f"[{i}]:{', '.join(map(str,b))}" for i,b in enumerate(buckets)))
+
+def insertion_sort_bucket(bucket, idx):
+    print(f"\nOrdenando bucket {idx} (inicio): {bucket}")
+    for i in range(1, len(bucket)):
+        key = bucket[i]
+        j = i - 1
+        print(f"  Insertando key={key} (pos inicial {i})")
+        while j >= 0 and bucket[j] > key:
+            print(f"    desplazando {bucket[j]} desde pos {j} a pos {j+1}")
+            bucket[j+1] = bucket[j]
+            j -= 1
+        bucket[j+1] = key
+        print(f"  Estado bucket tras insertar {key}: {bucket}")
+    print(f"Bucket {idx} ordenado: {bucket}")
+
+def bucket_sort_step(arr, bucket_count=5):
+    if not arr: return arr
+    mn, mx = min(arr), max(arr)
+    range_ = mx - mn + 1
+    buckets = [[] for _ in range(bucket_count)]
+
+    print("\nDistribución en buckets")
+    for v in arr:
+        idx = int(((v - mn) / range_) * bucket_count)
+        if idx == bucket_count: idx = bucket_count - 1
+        buckets[idx].append(v)
+        print(f"Insertando {v} en bucket {idx}:")
+        print_buckets(buckets)
+
+    print("\nOrdenando cada bucket con Insertion Sort")
+    result = []
+    for i, b in enumerate(buckets):
+        if b:
+            insertion_sort_bucket(b, i)
+        result.extend(b)
+    return result
+
+if __name__ == "__main__":
+    arr = [3, 6, 2, 8, 4, 7, 1, 10, 9, 5]
+    print("\nArreglo riginal:", arr)
+    sorted_arr = bucket_sort_step(arr, bucket_count=4)
+    print("\nArreglo final:", sorted_arr)
+
