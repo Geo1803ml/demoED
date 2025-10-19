@@ -1,0 +1,49 @@
+function printBuckets(buckets) {
+  console.log(buckets.map((b,i)=>`[${i}]:${b.join(",")}`).join(" | "));
+}
+
+function insertionSortBucket(bucket, idx) {
+  console.log(`\nOrdenando bucket ${idx} (inicio): [${bucket.join(", ")}]`);
+  for (let i = 1; i < bucket.length; i++) {
+    const key = bucket[i];
+    let j = i - 1;
+    console.log(`  Insertando key=${key} (pos inicial ${i})`);
+    while (j >= 0 && bucket[j] > key) {
+      console.log(`    desplazando ${bucket[j]} desde pos ${j} a pos ${j+1}`);
+      bucket[j + 1] = bucket[j];
+      j--;
+    }
+    bucket[j + 1] = key;
+    console.log(`  Estado bucket tras insertar ${key}: [${bucket.join(", ")}]`);
+  }
+  console.log(`Bucket ${idx} ordenado: [${bucket.join(", ")}]`);
+}
+
+function bucketSortStep(arr, bucketCount=5) {
+  if (!arr.length) return arr;
+  const mn = Math.min(...arr), mx = Math.max(...arr);
+  const range = mx - mn + 1;
+  const buckets = Array.from({length: bucketCount}, () => []);
+
+  console.log("\nDistribución en buckets");
+  for (const v of arr) {
+    let idx = Math.floor(((v - mn) / range) * bucketCount);
+    if (idx === bucketCount) idx = bucketCount - 1;
+    buckets[idx].push(v);
+    console.log(`Insertando ${v} en bucket ${idx}:`);
+    printBuckets(buckets);
+  }
+
+  console.log("\nOrdenando cada bucket con Insertion Sort");
+  const result = [];
+  for (let i = 0; i < bucketCount; i++) {
+    if (buckets[i].length) insertionSortBucket(buckets[i], i);
+    result.push(...buckets[i]);
+  }
+  return result;
+}
+
+const arr = [7, 34, 23, 5, 16, 48, 2, 30, 41, 29];
+console.log("\nArreglo original:", arr);
+const sorted = bucketSortStep(arr, 6);
+console.log("\nArreglo final (concatenación de buckets):", sorted);
