@@ -1,0 +1,61 @@
+import java.util.*;
+
+public class Ejercicio_12 {
+    static void printBuckets(List<List<Integer>> buckets) {
+        for (int i = 0; i < buckets.size(); i++) {
+            System.out.print("[" + i + "]:" + buckets.get(i));
+            if (i < buckets.size() - 1) System.out.print(" | ");
+        }
+        System.out.println();
+    }
+
+    static void insertionSortBucket(List<Integer> bucket, int idx) {
+        System.out.println("\nOrdenando bucket " + idx + " (inicio): " + bucket);
+        for (int i = 1; i < bucket.size(); i++) {
+            int key = bucket.get(i);
+            int j = i - 1;
+            System.out.println("  Insertando key=" + key + " (pos inicial " + i + ")");
+            while (j >= 0 && bucket.get(j) > key) {
+                System.out.println("    desplazando " + bucket.get(j) + " desde pos " + j + " a pos " + (j+1));
+                bucket.set(j + 1, bucket.get(j));
+                j--;
+            }
+            bucket.set(j + 1, key);
+            System.out.println("  Estado bucket tras insertar " + key + ": " + bucket);
+        }
+        System.out.println("Bucket " + idx + " ordenado: " + bucket);
+    }
+
+    static List<Integer> bucketSortStep(int[] arr, int bucketCount) {
+        if (arr.length == 0) return new ArrayList<>();
+        int mn = Arrays.stream(arr).min().getAsInt();
+        int mx = Arrays.stream(arr).max().getAsInt();
+        double range = mx - mn + 1;
+        List<List<Integer>> buckets = new ArrayList<>();
+        for (int i = 0; i < bucketCount; i++) buckets.add(new ArrayList<>());
+
+        System.out.println("\nDistribución en buckets");
+        for (int v : arr) {
+            int idx = (int)(((v - mn) / range) * bucketCount);
+            if (idx == bucketCount) idx = bucketCount - 1;
+            buckets.get(idx).add(v);
+            System.out.println("Insertando " + v + " en bucket " + idx + ":");
+            printBuckets(buckets);
+        }
+
+        System.out.println("\nOrdenando cada bucket con Insertion Sort");
+        List<Integer> result = new ArrayList<>();
+        for (int i = 0; i < bucketCount; i++) {
+            if (!buckets.get(i).isEmpty()) insertionSortBucket(buckets.get(i), i);
+            result.addAll(buckets.get(i));
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        int[] arr = { 5, 20, 3, 18, 11, 30, 25, 1, 14, 9 };
+        System.out.println("\n Arreglo original: " + Arrays.toString(arr));
+        List<Integer> sorted = bucketSortStep(arr, 5);
+        System.out.println("\nArreglo final: " + sorted);
+    }
+}
