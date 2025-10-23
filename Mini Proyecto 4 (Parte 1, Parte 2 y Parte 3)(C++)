@@ -1,0 +1,596 @@
+// LaberintoRaylib.cpp
+
+#include "raylib.h"
+#include <vector>
+#include <string>
+#include <map>
+#include <random>
+#include <chrono>
+#include <sstream>
+#include <utility>
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
+
+using namespace std;
+
+// Compatibilidad teclas (KEY_1/KEY_ONE)
+#if defined(KEY_ONE)
+  #define MY_KEY_1 KEY_ONE
+#else
+  #if defined(KEY_1)
+    #define MY_KEY_1 KEY_1
+  #else
+    #define MY_KEY_1 '1'
+  #endif
+#endif
+
+#if defined(KEY_TWO)
+  #define MY_KEY_2 KEY_TWO
+#else
+  #if defined(KEY_2)
+    #define MY_KEY_2 KEY_2
+  #else
+    #define MY_KEY_2 '2'
+  #endif
+#endif
+
+#if defined(KEY_THREE)
+  #define MY_KEY_3 KEY_THREE
+#else
+  #if defined(KEY_3)
+    #define MY_KEY_3 KEY_3
+  #else
+    #define MY_KEY_3 '3'
+  #endif
+#endif
+
+// Configuración visual / juego
+const int N = 20;            // tamaño del laberinto (N x N)
+const int CELL = 28;         // tamaño de cada celda en píxeles
+const int MARGIN = 8;        // margen en píxeles alrededor del mapa
+const int HUD_HEIGHT = 80;   // altura reservada para el HUD inferior
+const int INV_WIDTH = 320;   // ancho del panel de inventario derecho
+
+const int MAP_W = N * CELL + MARGIN * 2;
+const int SCREEN_W = MAP_W + INV_WIDTH + MARGIN; // anchura total ventana
+const int SCREEN_H = N * CELL + MARGIN * 2 + HUD_HEIGHT;
+
+const int INIT_LIVES = 3;
+const int INIT_ENERGY = 4;
+const int MAX_ENERGY = 10;
+
+// Tipos simples
+struct Pos { int r, c; };
+struct TreasureInfo { string name; int value; };
+
+// RNG global
+static std::mt19937 rng((unsigned)chrono::high_resolution_clock::now().time_since_epoch().count());
+static auto rnd01 = [](double p)->bool {
+    std::uniform_real_distribution<double> d(0.0,1.0);
+    return d(rng) < p;
+};
+static auto rndInt = [](int a,int b)->int {
+    std::uniform_int_distribution<int> d(a,b);
+    return d(rng);
+};
+
+// Estado del juego
+struct GameState {
+    int level = 1;
+    vector<string> grid;
+    vector<vector<bool>> visible;           // visibilidad por celda (niebla)
+    Pos player{0,0};
+    map<pair<int,int>, int> posToTreasure;
+    map<pair<int,int>, int> posToLifeItem;
+    vector<TreasureInfo> treasuresAll;
+    vector<TreasureInfo> inventory;
+    int lives = INIT_LIVES;
+    int energy = INIT_ENERGY;
+    int score_base = 0;
+    float elapsed = 0.0f;
+    int consec_no_hit = 0;
+    int invScroll = 0;
+    bool hasKey = false;
+    string keyName;
+};
+
+// Revelar solo la celda exacta donde está el jugador
+static void reveal_only_player(GameState &S, int r, int c) {
+    if (r >= 0 && r < N && c >= 0 && c < N) {
+        S.visible[r][c] = true;
+    }
+}
+
+
+// Generador de niveles (coloca paredes, tesoros, trampas, llave y puerta)
+void generate_level(GameState &S, int level) {
+    S.grid.assign(N, string(N,' '));
+    S.visible.assign(N, vector<bool>(N,false));
+    S.posToTreasure.clear();
+    S.posToLifeItem.clear();
+    S.inventory.clear();
+    S.score_base = 0;
+    S.elapsed = 0.0f;
+    S.consec_no_hit = 0;
+    S.invScroll = 0;
+    S.hasKey = false;
+    S.keyName.clear();
+
+    double base_wall = 0.18;
+    int trap_count = 6;
+    int life_items = 1;
+    double treasure_value_mult = 1.0;
+
+    if (level == 1) { base_wall = 0.18; trap_count = 6; life_items = 1; treasure_value_mult = 1.0; }
+    else if (level == 2) { base_wall = 0.24; trap_count = 8; life_items = 2; treasure_value_mult = 1.3; }
+    else { base_wall = 0.30; trap_count = 10; life_items = 3; treasure_value_mult = 1.6; }
+
+    // paredes aleatorias y borde fijo
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) if (rnd01(base_wall)) S.grid[i][j] = '#';
+    for (int i=0;i<N;i++){ S.grid[i][0]='#'; S.grid[i][N-1]='#'; S.grid[0][i]='#'; S.grid[N-1][i]='#'; }
+
+    // posición inicial del jugador (celda vacía)
+    bool found=false;
+    for (int attempt=0; attempt<10000 && !found; ++attempt) {
+        int r=rndInt(1,N-2), c=rndInt(1,N-2);
+        if (S.grid[r][c]==' ') { S.player.r=r; S.player.c=c; found=true; }
+    }
+    if (!found) for (int i=1;i<N-1 && !found;i++) for (int j=1;j<N-1 && !found;j++) if (S.grid[i][j]==' ') { S.player.r=i; S.player.c=j; found=true; }
+
+    // generar tesoros (12)
+    S.treasuresAll.clear();
+    vector<string> names = {
+        "Cofre de Coral","Corona Antigua","Anillo Solar","Sello Lunar",
+        "Joyel de Rubi","Esfera de Fuego","Mapa Dorado","Medallon Verde",
+        "Pergamino Antiguo","Gema Azul","Cetro Pequeño","Relicario"
+    };
+    vector<int> values;
+    while ((int)values.size() < 12) {
+        int v = rndInt(10,120);
+        if (find(values.begin(), values.end(), v) == values.end()) values.push_back(v);
+    }
+    for (int i=0;i<12;i++) S.treasuresAll.push_back({ names[i], (int)round(values[i]*treasure_value_mult) });
+
+    // colocar tesoros en celdas vacías
+    int placed = 0;
+    for (int t=0;t<12 && placed < N*N; ++t) {
+        bool ok=false;
+        for (int a=0;a<2000 && !ok;++a) {
+            int r=rndInt(1,N-2), c=rndInt(1,N-2);
+            if (S.grid[r][c]==' ' && !(r==S.player.r && c==S.player.c)) {
+                S.grid[r][c] = 'T';
+                S.posToTreasure[{r,c}] = t;
+                ok=true; placed++;
+            }
+        }
+    }
+
+    // colocar trampas
+    for (int t=0;t<trap_count;++t) {
+        bool ok=false;
+        for (int a=0;a<3000 && !ok;++a) {
+            int r=rndInt(1,N-2), c=rndInt(1,N-2);
+            if (S.grid[r][c]==' ' && !(r==S.player.r && c==S.player.c)) { S.grid[r][c]='X'; ok=true; }
+        }
+    }
+
+    // items de vida 'L'
+    for (int t=0;t<life_items;++t) {
+        bool ok=false;
+        for (int a=0;a<2000 && !ok;++a) {
+            int r=rndInt(1,N-2), c=rndInt(1,N-2);
+            if (S.grid[r][c]==' ' && !(r==S.player.r && c==S.player.c)) { S.grid[r][c]='V'; S.posToLifeItem[{r,c}]=1; ok=true; }
+        }
+    }
+
+    // colocar llave 'K' en una celda aleatoria vacía
+    bool placedKey = false;
+    for (int a=0;a<3000 && !placedKey; ++a) {
+        int r=rndInt(1,N-2), c=rndInt(1,N-2);
+        if (S.grid[r][c]==' ' && !(r==S.player.r && c==S.player.c)) {
+            S.grid[r][c] = 'L';
+            S.keyName = "Llave Nivel " + to_string(level);
+            placedKey = true;
+        }
+    }
+
+    // colocar puerta 'D' preferentemente en borde interior
+    bool placedDoor = false;
+    vector<pair<int,int>> borderCandidates;
+    for (int i=1;i<N-1;i++) {
+        if (S.grid[i][1]==' ') borderCandidates.emplace_back(i,1);
+        if (S.grid[i][N-2]==' ') borderCandidates.emplace_back(i,N-2);
+        if (S.grid[1][i]==' ') borderCandidates.emplace_back(1,i);
+        if (S.grid[N-2][i]==' ') borderCandidates.emplace_back(N-2,i);
+    }
+    if (!borderCandidates.empty()) {
+        auto p = borderCandidates[rndInt(0,(int)borderCandidates.size()-1)];
+        S.grid[p.first][p.second] = 'D'; placedDoor = true;
+    } else {
+        for (int a=0;a<3000 && !placedDoor;++a) {
+            int r=rndInt(1,N-2), c=rndInt(1,N-2);
+            if (S.grid[r][c]==' ' && !(r==S.player.r && c==S.player.c)) { S.grid[r][c] = 'D'; placedDoor = true; }
+        }
+    }
+
+    // revelar cruz alrededor del jugador al inicio
+    reveal_only_player(S, S.player.r, S.player.c);
+
+}
+
+// Guardar / cargar: añadimos hasKey y keyName para persistencia
+bool save_game(const GameState &S, const string &filename) {
+    ofstream f(filename, ios::binary);
+    if (!f) return false;
+    f << S.level << '\n';
+    for (int i=0;i<N;i++) f << S.grid[i] << '\n';
+    for (int i=0;i<N;i++){
+        for (int j=0;j<N;j++) f << (S.visible[i][j] ? '1' : '0');
+        f << '\n';
+    }
+    f << S.player.r << ' ' << S.player.c << '\n';
+    f << S.treasuresAll.size() << '\n';
+    for (auto &t : S.treasuresAll) f << t.name << '\n' << t.value << '\n';
+    f << S.posToTreasure.size() << '\n';
+    for (auto &p : S.posToTreasure) f << p.first.first << ' ' << p.first.second << ' ' << p.second << '\n';
+    f << S.posToLifeItem.size() << '\n';
+    for (auto &p : S.posToLifeItem) f << p.first.first << ' ' << p.first.second << ' ' << p.second << '\n';
+    f << S.inventory.size() << '\n';
+    for (auto &t : S.inventory) f << t.name << '\n' << t.value << '\n';
+    f << S.lives << ' ' << S.energy << ' ' << S.score_base << ' ' << S.consec_no_hit << '\n';
+    f << fixed << setprecision(3) << S.elapsed << '\n';
+    f << S.invScroll << '\n';
+    f << (S.hasKey ? '1' : '0') << '\n';
+    f << S.keyName << '\n';
+    f.close();
+    return true;
+}
+
+bool load_game(GameState &S, const string &filename) {
+    ifstream f(filename, ios::binary);
+    if (!f) return false;
+    int level;
+    if (!(f >> level)) return false;
+    S.level = level;
+    string tmp; getline(f,tmp);
+    S.grid.assign(N, string());
+    for (int i=0;i<N;i++) {
+        getline(f, S.grid[i]);
+        if ((int)S.grid[i].size() < N) S.grid[i].resize(N,' ');
+    }
+    S.visible.assign(N, vector<bool>(N,false));
+    for (int i=0;i<N;i++){
+        string line; getline(f,line);
+        for (int j=0;j<N && j<(int)line.size(); ++j) S.visible[i][j] = (line[j]=='1');
+    }
+    f >> S.player.r >> S.player.c;
+    int tcount; f >> tcount; getline(f,tmp);
+    S.treasuresAll.clear();
+    for (int i=0;i<tcount;i++){
+        string name; getline(f,name);
+        int v; f >> v; getline(f,tmp);
+        S.treasuresAll.push_back({name,v});
+    }
+    int m1; f >> m1;
+    S.posToTreasure.clear();
+    for (int i=0;i<m1;i++){ int r,c,idx; f >> r >> c >> idx; S.posToTreasure[{r,c}] = idx; }
+    int m2; f >> m2;
+    S.posToLifeItem.clear();
+    for (int i=0;i<m2;i++){ int r,c,val; f >> r >> c >> val; S.posToLifeItem[{r,c}] = val; }
+    int invsz; f >> invsz; getline(f,tmp);
+    S.inventory.clear();
+    for (int i=0;i<invsz;i++){ string nm; getline(f,nm); int v; f >> v; getline(f,tmp); S.inventory.push_back({nm,v}); }
+    f >> S.lives >> S.energy >> S.score_base >> S.consec_no_hit;
+    f >> S.elapsed;
+    f >> S.invScroll;
+    char hk; f >> hk; getline(f,tmp);
+    S.hasKey = (hk == '1');
+    getline(f, S.keyName);
+    f.close();
+    return true;
+}
+
+// PROGRAMA PRINCIPAL
+int main() {
+    InitWindow(SCREEN_W, SCREEN_H, "Laberinto - Raylib");
+    SetTargetFPS(60);
+
+    GameState S;
+    S.level = 1;
+    generate_level(S, S.level);
+
+    bool running = true;
+    bool inMenu = true;
+    bool gameWon = false;
+    string tempMsg;
+    float tempMsgTimer = 0.0f;
+    int fontSize = 18;
+
+    // inventario panel
+    const int invPanelX = MAP_W + MARGIN/2;
+    const int invPanelY = MARGIN;
+    const int invPanelW = INV_WIDTH - MARGIN;
+    const int invPanelH = N * CELL;
+    const int itemLineHeight = 18;
+
+    double prevTime = GetTime();
+
+    while (running && !WindowShouldClose()) {
+        double now = GetTime();
+        float dt = (float)(now - prevTime);
+        prevTime = now;
+
+        // menú inicial simple
+        if (inMenu) {
+            static int menuSel = 0;
+            if (IsKeyPressed(KEY_DOWN)) menuSel = (menuSel + 1) % 3;
+            if (IsKeyPressed(KEY_UP)) menuSel = (menuSel + 2) % 3;
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER) || IsKeyPressed(KEY_SPACE)) {
+                if (menuSel == 0) { S = GameState(); S.level = 1; generate_level(S, S.level); inMenu = false; }
+                else if (menuSel == 1) { if (load_game(S,"savegame.txt")) { tempMsg="Partida cargada"; tempMsgTimer=2.0f; inMenu=false; } else { tempMsg="No se encontro savegame.txt"; tempMsgTimer=2.0f; } }
+                else { running=false; break; }
+            }
+            BeginDrawing();
+                ClearBackground(RAYWHITE);
+                DrawText("LABERINTO - MENU", 60, 40, 32, DARKBLUE);
+                const char *options[3] = { "Jugar (nivel 1)", "Cargar partida", "Salir" };
+                for (int i=0;i<3;i++) {
+                    Color col = (i==menuSel) ? DARKGREEN : DARKGRAY;
+                    DrawText(options[i], 80, 120 + i*40, 24, col);
+                }
+                DrawText("Navega con flechas, Enter para seleccionar.", 20, SCREEN_H - 40, 16, DARKBLUE);
+                if (!tempMsg.empty() && tempMsgTimer > 0.0f) {
+                    tempMsgTimer = max(0.0f, tempMsgTimer - dt);
+                    DrawText(tempMsg.c_str(), 60, SCREEN_H - 80, 16, MAROON);
+                }
+            EndDrawing();
+            continue;
+        }
+
+        // EN JUEGO
+        // Guardar con F5
+        if (IsKeyPressed(KEY_F5)) {
+            if (save_game(S, "savegame.txt")) { tempMsg = "Partida guardada en savegame.txt"; tempMsgTimer = 2.0f; }
+            else { tempMsg = "Error al guardar partida"; tempMsgTimer = 2.0f; }
+        }
+
+        // inventario scroll (rueda o PgUp/PgDn/Home/End)
+        Vector2 mouse = GetMousePosition();
+        float wheel = GetMouseWheelMove();
+        Rectangle invAreaRect = { (float)invPanelX + 8.0f, (float)invPanelY + 28.0f, (float)invPanelW - 24.0f, (float)invPanelH - 48.0f };
+        int itemsPerPage = (int)(invAreaRect.height) / itemLineHeight; if (itemsPerPage <= 0) itemsPerPage = 1;
+        int maxScroll = (int)S.inventory.size() - itemsPerPage; if (maxScroll < 0) maxScroll = 0;
+        if (CheckCollisionPointRec(mouse, invAreaRect) && wheel != 0.0f) S.invScroll -= (int)wheel;
+        if (IsKeyPressed(KEY_PAGE_UP)) S.invScroll -= itemsPerPage;
+        if (IsKeyPressed(KEY_PAGE_DOWN)) S.invScroll += itemsPerPage;
+        if (IsKeyPressed(KEY_HOME)) S.invScroll = 0;
+        if (IsKeyPressed(KEY_END)) S.invScroll = maxScroll;
+        if (S.invScroll < 0) S.invScroll = 0;
+        if (S.invScroll > maxScroll) S.invScroll = maxScroll;
+
+        // movimiento
+        int dr=0, dc=0;
+        if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) dr = -1;
+        else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) dr = 1;
+        else if (IsKeyPressed(KEY_LEFT) || IsKeyPressed(KEY_A)) dc = -1;
+        else if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) dc = 1;
+        else if (IsKeyPressed(KEY_Q)) { running=false; break; }
+
+        // cronómetro
+        S.elapsed += dt;
+
+        // procesar movimiento y revelar cruz alrededor al moverse
+        if ((dr != 0 || dc != 0) && S.lives > 0 && !gameWon) {
+            int nr = S.player.r + dr;
+            int nc = S.player.c + dc;
+            if (nr < 0 || nr >= N || nc < 0 || nc >= N) {
+                if (S.energy > 0) { S.energy--; tempMsg = "Chocaste contra el borde: -1 energia"; tempMsgTimer = 2.0f; }
+                else { S.lives--; S.energy = INIT_ENERGY; tempMsg = "Sin energia: -1 vida y energia restaurada"; tempMsgTimer = 2.0f; }
+                S.consec_no_hit = 0;
+            } else {
+                char cell = S.grid[nr][nc];
+                if (cell == '#') {
+                    // revelar pared
+                    S.visible[nr][nc] = true;
+                    if (S.energy > 0) { S.energy--; tempMsg = "Chocaste contra una pared: -1 energia"; tempMsgTimer = 2.0f; }
+                    else { S.lives--; S.energy = INIT_ENERGY; tempMsg = "Sin energia al chocar: -1 vida y energia restaurada"; tempMsgTimer = 2.0f; }
+                    S.consec_no_hit = 0;
+                } else {
+                    // movimiento válido
+                    S.player.r = nr; S.player.c = nc;
+                    reveal_only_player(S, nr, nc);
+                    S.consec_no_hit++;
+                    if (S.consec_no_hit >= 3) {
+                        if (S.energy < MAX_ENERGY) { S.energy++; tempMsg = "+1 energia por 3 pasos seguidos"; tempMsgTimer = 1.2f; }
+                        S.consec_no_hit = 0;
+                    }
+                    if (cell == 'X') {
+                        S.lives--; S.grid[nr][nc] = ' ';
+                        S.score_base = max(0, S.score_base - 10);
+                        tempMsg = "Caiste en una trampa: -1 vida -10 pts"; tempMsgTimer = 2.0f;
+                    } else if (cell == 'T') {
+                        auto it = S.posToTreasure.find({nr,nc});
+                        if (it != S.posToTreasure.end()) {
+                            int idx = it->second;
+                            if (idx >= 0 && idx < (int)S.treasuresAll.size()) {
+                                S.inventory.push_back(S.treasuresAll[idx]);
+                                S.score_base += S.treasuresAll[idx].value;
+                                stringstream ss; ss << "Recolectaste: " << S.treasuresAll[idx].name << " (+" << S.treasuresAll[idx].value << " pts)";
+                                tempMsg = ss.str(); tempMsgTimer = 2.0f;
+                            }
+                            S.posToTreasure.erase(it);
+                        }
+                        S.grid[nr][nc] = ' ';
+                    } else if (cell == 'V') {
+                        S.lives++; S.grid[nr][nc] = ' ';
+                        S.posToLifeItem.erase({nr,nc});
+                        tempMsg = "Encontraste una pocion de vida: +1 vida"; tempMsgTimer = 2.0f;
+                    } else if (cell == 'L') {
+                        // recoger llave del nivel actual
+                        S.hasKey = true;
+                        S.grid[nr][nc] = ' ';
+                        tempMsg = "Has recogido la " + S.keyName + "! Ahora puedes abrir la puerta."; tempMsgTimer = 3.0f;
+                    } else if (cell == 'D') {
+                        // puerta: si tiene llave -> abrir y avanzar de nivel; si no -> aviso
+                        if (S.hasKey) {
+                            if (S.level >= 3) {
+                                gameWon = true;
+                                tempMsg = "Puerta abierta: Has completado el juego"; tempMsgTimer = 3.0f;
+                            } else {
+                                S.level++;
+                                tempMsg = "Puerta abierta: pasando al nivel " + to_string(S.level) + "!"; tempMsgTimer = 2.5f;
+                                generate_level(S, S.level);
+                            }
+                        } else {
+                            tempMsg = "La puerta está cerrada. Necesitas la llave del nivel."; tempMsgTimer = 2.0f;
+                        }
+                    }
+                }
+            }
+        }
+
+        // comprobar si quedan tesoros
+        int remaining = 0;
+        for (auto &p : S.posToTreasure) {
+            int rr = p.first.first, cc = p.first.second;
+            if (S.grid[rr][cc] == 'T') remaining++;
+        }
+        bool outOfLives = (S.lives <= 0);
+
+        // DIBUJO
+        BeginDrawing();
+            ClearBackground(RAYWHITE);
+
+            // mapa
+            for (int i=0;i<N;i++){
+                for (int j=0;j<N;j++){
+                    int x = MARGIN + j * CELL;
+                    int y = MARGIN + i * CELL;
+                    Rectangle rc = { (float)x, (float)y, (float)CELL, (float)CELL };
+                    DrawRectangleRec(rc, LIGHTGRAY);
+                    if (!S.visible[i][j]) DrawRectangleRec(rc, GRAY);
+                    else {
+                        char ch = S.grid[i][j];
+                        if (ch == '#') DrawRectangleRec(rc, DARKGRAY);
+                        else if (ch == 'T') { DrawRectangleRec(rc, Fade(GOLD,0.95f)); DrawText("T", x + CELL/4, y + CELL/6, CELL/2, BLACK); }
+                        else if (ch == 'X') { DrawRectangleRec(rc, Fade(RED,0.95f)); DrawText("X", x + CELL/4, y + CELL/6, CELL/2, BLACK); }
+                        else if (ch == 'V') { DrawRectangleRec(rc, Fade(GREEN,0.9f)); DrawText("L", x + CELL/4, y + CELL/6, CELL/2, BLACK); }
+                        else if (ch == 'L') { DrawRectangleRec(rc, Fade(SKYBLUE,0.9f)); DrawText("K", x + CELL/4, y + CELL/6, CELL/2, BLACK); }
+                        else if (ch == 'D') { DrawRectangleRec(rc, Fade(BEIGE,0.9f)); DrawText("D", x + CELL/4, y + CELL/6, CELL/2, BLACK); }
+                        else DrawRectangleLines(x,y,CELL,CELL, Fade(LIGHTGRAY,0.6f));
+                    }
+                    DrawRectangleLines(x,y,CELL,CELL, Fade(DARKGRAY,0.6f));
+                }
+            }
+
+            // jugador
+            int px = MARGIN + S.player.c * CELL;
+            int py = MARGIN + S.player.r * CELL;
+            DrawRectangle(px + 4, py + 4, CELL - 8, CELL - 8, BLUE);
+            DrawText("P", px + CELL/4, py + CELL/6, CELL/2, WHITE);
+
+            // HUD (debajo del mapa)
+            int hudY = MARGIN + N * CELL + 8;
+            int timePenalty = (int)floor(S.elapsed);
+            int displayedScore = max(0, S.score_base - timePenalty); // la puntuacion disminuye con el tiempo transcurrido
+            stringstream ss; ss << "Nivel: " << S.level << "   Vidas: " << S.lives << "   Energia: " << S.energy << "   Puntuacion: " << displayedScore;
+            DrawText(ss.str().c_str(), MARGIN, hudY, fontSize, BLACK);
+
+            // cronómetro mm:ss
+            int minutes = (int)(S.elapsed) / 60;
+            int seconds = (int)(S.elapsed) % 60;
+            stringstream tss; tss << "Tiempo: " << minutes << ":" << (seconds < 10 ? "0" : "") << seconds;
+            DrawText(tss.str().c_str(), MAP_W - 160, hudY, fontSize, DARKGREEN);
+
+            // línea con tesoros y pasos sin chocar (evitamos dibujar otros textos aquí para que no solapen)
+            stringstream ss2; ss2 << "Tesoros restantes: " << remaining << "   Pasos sin chocar: " << S.consec_no_hit;
+            DrawText(ss2.str().c_str(), MARGIN, hudY + 22, fontSize, BLACK);
+
+            DrawText("Controles: Flechas/WASD. F5 guardar. Q salir.", MARGIN, hudY + 44, 12, DARKBLUE);
+
+            // panel inventario
+            DrawRectangle(invPanelX - 8, invPanelY - 8, invPanelW + 16, invPanelH + 16, Fade(LIGHTGRAY,0.08f));
+            DrawRectangleLines(invPanelX - 8, invPanelY - 8, invPanelW + 16, invPanelH + 16, Fade(DARKGRAY,0.25f));
+            DrawText("Inventario (tesoros):", invPanelX + 8, invPanelY, 20, DARKGREEN);
+
+            // mostrar si tiene llave
+            if (S.hasKey) {
+                string kn = "Llave: " + S.keyName;
+                DrawText(kn.c_str(), invPanelX + 8, invPanelY + 26, 14, DARKBLUE);
+            }
+
+            Rectangle invListArea = { (float)invPanelX + 8, (float)invPanelY + 48, (float)invPanelW - 24, (float)invPanelH - 76 };
+            DrawRectangle(invListArea.x - 4, invListArea.y - 4, invListArea.width + 8, invListArea.height + 8, Fade(LIGHTGRAY,0.02f));
+
+            // dibujar items visibles del inventario
+            itemsPerPage = (int)(invListArea.height) / itemLineHeight; if (itemsPerPage <= 0) itemsPerPage = 1;
+            maxScroll = (int)S.inventory.size() - itemsPerPage; if (maxScroll < 0) maxScroll = 0;
+            if (S.invScroll < 0) S.invScroll = 0; if (S.invScroll > maxScroll) S.invScroll = maxScroll;
+            for (int i=0;i<itemsPerPage;i++){
+                int idx = S.invScroll + i;
+                int y = (int)(invListArea.y) + i * itemLineHeight;
+                if (idx < (int)S.inventory.size()) {
+                    stringstream itss; itss << (idx+1) << ". " << S.inventory[idx].name << " (+" << S.inventory[idx].value << " pts)";
+                    DrawText(itss.str().c_str(), (int)invListArea.x + 4, y, 14, BLACK);
+                }
+            }
+
+            // scrollbar
+            if ((int)S.inventory.size() > itemsPerPage) {
+                int sbX = invPanelX + invPanelW - 16;
+                int sbY = (int)invListArea.y;
+                int sbW = 8;
+                int sbH = (int)invListArea.height;
+                DrawRectangle(sbX, sbY, sbW, sbH, Fade(DARKGRAY, 0.12f));
+                float visibleRatio = (float)itemsPerPage / (float)S.inventory.size();
+                int thumbH = max(12, (int)(sbH * visibleRatio));
+                int thumbY = sbY;
+                if (maxScroll > 0) {
+                    float scrollRatio = (float)S.invScroll / (float)maxScroll;
+                    thumbY = sbY + (int)((sbH - thumbH) * scrollRatio);
+                }
+                DrawRectangle(sbX, thumbY, sbW, thumbH, Fade(DARKBLUE, 0.9f));
+            }
+
+            // mensaje temporal en panel inferior derecho
+            int msgY = invPanelY + invPanelH - 40;
+            if (!tempMsg.empty()) {
+                DrawText(tempMsg.c_str(), invPanelX + 8, msgY, 14, MAROON);
+                tempMsgTimer = max(0.0f, tempMsgTimer - dt);
+                if (tempMsgTimer <= 0.0f) tempMsg.clear();
+            }
+
+            // overlay fin del juego (victoria final) o derrota
+            if (gameWon || outOfLives) {
+                // calculamos finalScore restando tiempo otra vez al total como pediste
+                int timePenalty2 = (int)floor(S.elapsed);
+                int finalScore = max(0, S.score_base - timePenalty2) + (S.lives * 30) + (S.energy * 5) - timePenalty2;
+                if (finalScore < 0) finalScore = 0;
+
+                DrawRectangle(0,0,SCREEN_W,SCREEN_H, Fade(BLACK,0.6f));
+                if (gameWon) DrawText("¡Has completado los 3 niveles - Victoria!", SCREEN_W/6, SCREEN_H/2 - 60, 20, RAYWHITE);
+                else DrawText("Has perdido todas las vidas - Juego terminado", SCREEN_W/6, SCREEN_H/2 - 60, 20, RAYWHITE);
+
+                stringstream fss; fss << "Puntuacion base: " << S.score_base;
+                DrawText(fss.str().c_str(), SCREEN_W/6, SCREEN_H/2 - 20, 18, RAYWHITE);
+                stringstream bonusss; bonusss << "Bonos: Vidas(" << S.lives << "*30) + Energia(" << S.energy << "*5) - Tiempo(" << timePenalty2 << ")";
+                DrawText(bonusss.str().c_str(), SCREEN_W/6, SCREEN_H/2 + 4, 16, RAYWHITE);
+                stringstream finalss; finalss << "Puntuacion final: " << S.score_base;
+                DrawText(finalss.str().c_str(), SCREEN_W/6, SCREEN_H/2 + 36, 20, YELLOW);
+                DrawText("Presiona Q para salir.", SCREEN_W/6, SCREEN_H/2 + 70, 16, LIGHTGRAY);
+            }
+
+        EndDrawing();
+
+        // temporizador mensaje fuera del drawing
+        if (!tempMsg.empty() && tempMsgTimer > 0.0f) {
+            tempMsgTimer = max(0.0f, tempMsgTimer - dt);
+            if (tempMsgTimer <= 0.0f) tempMsg.clear();
+        }                    
+
+    }
+
+    CloseWindow();
+    return 0;
+}
