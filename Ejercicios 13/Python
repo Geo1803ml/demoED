@@ -1,0 +1,41 @@
+def radix_sort_nonnegative(arr):
+    if not arr: 
+        return arr
+    max_v = max(arr)
+    exp = 1
+    n = len(arr)
+    output = [0]*n
+    while max_v // exp > 0:
+        count = [0]*10
+
+        for i in range(n):
+            d = (arr[i] // exp) % 10
+            count[d] += 1
+
+        for i in range(1, 10):
+            count[i] += count[i-1]
+
+        for i in range(n-1, -1, -1):
+            d = (arr[i] // exp) % 10
+            count[d] -= 1
+            output[count[d]] = arr[i]
+        arr[:] = output[:] 
+        exp *= 10
+    return arr
+
+def radix_sort(arr):
+    if not arr: return arr
+    negatives = [abs(x) for x in arr if x < 0]
+    positives = [x for x in arr if x >= 0]
+
+    radix_sort_nonnegative(positives)
+    radix_sort_nonnegative(negatives)
+
+    result = [-x for x in reversed(negatives)] + positives
+    return result
+
+# ejemplo
+if __name__ == "__main__":
+    a = [54, -23, 75, -223, 123, 24, -2, 13, 1, 100]
+    print("Original:", a)
+    print("Ordenado (Radix Sort):", radix_sort(a.copy()))
