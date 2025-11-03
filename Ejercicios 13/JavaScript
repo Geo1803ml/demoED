@@ -1,0 +1,42 @@
+function radixNonNeg(arr) {
+  if (arr.length === 0) return arr;
+  let maxv = Math.max(...arr);
+  let exp = 1;
+  let n = arr.length;
+  let output = new Array(n);
+  while (Math.floor(maxv / exp) > 0) {
+    let count = new Array(10).fill(0);
+    for (let i = 0; i < n; i++) {
+      let d = Math.floor(arr[i] / exp) % 10;
+      count[d]++;
+    }
+    for (let i = 1; i < 10; i++) count[i] += count[i-1];
+    for (let i = n - 1; i >= 0; i--) {
+      let d = Math.floor(arr[i] / exp) % 10;
+      output[count[d] - 1] = arr[i];
+      count[d]--;
+    }
+    for (let i = 0; i < n; i++) arr[i] = output[i];
+    exp *= 10;
+  }
+  return arr;
+}
+
+function radixSort(arr) {
+  const negs = [];
+  const poss = [];
+  for (const v of arr) {
+    if (v < 0) negs.push(Math.abs(v)); else poss.push(v);
+  }
+  radixNonNeg(poss);
+  radixNonNeg(negs);
+  const result = [];
+  for (let i = negs.length - 1; i >= 0; i--) result.push(-negs[i]);
+  result.push(...poss);
+  return result;
+}
+
+// Ejemplo
+const a = [170, -45, 75, -90, 802, 24, 2, 66, -1, 0];
+console.log("Original:", a);
+console.log("Ordenado (Radix Sort):", radixSort([...a]));
