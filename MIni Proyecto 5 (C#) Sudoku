@@ -1,0 +1,277 @@
+using System;
+using System.Collections.Generic;
+
+class Program
+{
+    // Tablero y solución (9x9)
+    static int[,] board = new int[9, 9];
+    static int[,] solution = new int[9, 9];
+
+    // Configuración de juego
+    const int MAX_LIVES = 5;
+    static int lives = MAX_LIVES;   // vidas actuales
+    static int score = 0;
+
+    // Dificultades y estado
+    static string[] dificultades = { "Muy Fácil", "Fácil", "Medio", "Difícil", "Muy Difícil" };
+    static int dificultadActual = 0; // empieza en Muy Fácil
+    static int nivel = 1;            // niveles 1..5 por dificultad
+    static Random rnd = new Random();
+
+    static void Main()
+    {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.Title = "Sudoku en C#";
+
+        // Bucle principal de dificultades
+        while (dificultadActual < dificultades.Length)
+        {
+            // Al iniciar cada dificultad, nivel comienza en 1 (si venimos de una anterior)
+            nivel = Math.Max(1, nivel);
+
+            // Ejecutar los 5 niveles de la dificultad actual (o salir si se quedan sin vidas)
+            for (; nivel <= 5; nivel++)
+            {
+                // Antes de iniciar el nivel, asegurar que el jugador ve el mensaje de dónde está
+                Console.Clear();
+                Console.WriteLine("======================================");
+                Console.WriteLine($"DIFICULTAD: {dificultades[dificultadActual]}   |   NIVEL: {nivel}");
+                Console.WriteLine($"Vidas actuales: {lives}   |   Puntuación acumulada: {score}");
+                Console.WriteLine("======================================");
+                Console.WriteLine("Pulsa una tecla para iniciar este nivel...");
+                Console.ReadKey(true);
+
+                // Inicializar el sudoku para este nivel
+                IniciarSudoku();
+
+                // Jugar el nivel (retorna true si se completó con éxito)
+                bool completado = JugarSudoku();
+
+                if (!completado)
+                {
+                    // Si no se completó (quedó sin vidas o decidió salir)
+                    Console.Clear();
+                    Console.WriteLine("Has quedado en este nivel (no completado).");
+                    Console.WriteLine($"Dificultad: {dificultades[dificultadActual]}  -  Nivel: {nivel}");
+                    Console.WriteLine($"Vidas restantes: {lives}   |   Puntuación: {score}");
+                    Console.WriteLine("Pulsa Enter para volver al menú principal...");
+                    Console.ReadLine();
+                    return;
+                }
+                else
+                {
+                    // Nivel finalizado correctamente: restaurar vidas al máximo antes de pasar al siguiente nivel
+                    Console.WriteLine("\n¡Nivel completado correctamente!");
+                    Console.WriteLine($"Recuperando vidas a {MAX_LIVES} antes del siguiente nivel...");
+                    lives = MAX_LIVES;
+                    Console.WriteLine($"Vidas ahora: {lives}");
+                    Console.WriteLine("Pulsa Enter para continuar...");
+                    Console.ReadLine();
+                }
+            }
+
+            // Si completó 5 niveles de esta dificultad, pasar a la siguiente dificultad
+            dificultadActual++;
+            nivel = 1; // reiniciar contador de nivel para la nueva dificultad
+            if (dificultadActual < dificultades.Length)
+            {
+                Console.Clear();
+                Console.WriteLine($"Has completado la dificultad anterior. Avanzando a: {dificultades[dificultadActual]}");
+                Console.WriteLine("Pulsa Enter para continuar...");
+                Console.ReadLine();
+            }
+        }
+
+        // Si sale del bucle, completó todas las dificultades
+        Console.Clear();
+        Console.WriteLine("¡Felicidades! Has completado todas las dificultades.");
+        Console.WriteLine($"Puntuación final: {score}");
+        Console.WriteLine("Pulsa Enter para salir...");
+        Console.ReadLine();
+    }
+
+    // Inicializa solución y tablero con pistas según la dificultad actual
+    static void IniciarSudoku()
+    {
+        // Solución base
+        int[,] baseGrid = {
+            {5,3,4,6,7,8,9,1,2},
+            {6,7,2,1,9,5,3,4,8},
+            {1,9,8,3,4,2,5,6,7},
+            {8,5,9,7,6,1,4,2,3},
+            {4,2,6,8,5,3,7,9,1},
+            {7,1,3,9,2,4,8,5,6},
+            {9,6,1,5,3,7,2,8,4},
+            {2,8,7,4,1,9,6,3,5},
+            {3,4,5,2,8,6,1,7,9}
+        };
+        Array.Copy(baseGrid, solution, baseGrid.Length);
+
+        int minClues, maxClues;
+        switch (dificultadActual)
+        {
+            case 0: minClues = 36; maxClues = 44; break; // Muy fácil
+            case 1: minClues = 32; maxClues = 35; break; // Fácil
+            case 2: minClues = 28; maxClues = 31; break; // Medio
+            case 3: minClues = 24; maxClues = 27; break; // Difícil
+            default: minClues = 17; maxClues = 23; break; // Muy difícil
+        }
+
+        int visibles = rnd.Next(minClues, maxClues + 1);
+
+        // Copiar solución al tablero y quitar celdas al azar para dejar 'visibles' pistas
+        Array.Copy(solution, board, solution.Length);
+        List<(int, int)> posiciones = new List<(int, int)>();
+        for (int r = 0; r < 9; r++)
+            for (int c = 0; c < 9; c++)
+                posiciones.Add((r, c));
+
+        // Elegir posiciones
+        for (int i = posiciones.Count - 1; i > 0; i--)
+        {
+            int j = rnd.Next(i + 1);
+            var tmp = posiciones[i]; posiciones[i] = posiciones[j]; posiciones[j] = tmp;
+        }
+
+        // Eliminar las primeras (81 - visibles) posiciones
+        int toRemove = 81 - visibles;
+        for (int i = 0; i < toRemove; i++)
+        {
+            var (r, c) = posiciones[i];
+            board[r, c] = 0;
+        }
+    }
+
+    // Loop de juego para un nivel; devuelve true si completado correctamente, false si perdió todas las vidas o se rindió
+    static bool JugarSudoku()
+    {
+        while (true)
+        {
+            Console.Clear();
+            Console.WriteLine($"Dificultad: {dificultades[dificultadActual]}   |   Nivel: {nivel}");
+            Console.WriteLine($"Vidas: {lives}   |   Puntuación: {score}");
+            ImprimirTablero();
+
+            // Si tablero ya está completo
+            if (TableroCompleto())
+            {
+                Console.WriteLine("\n✅ ¡Has completado el tablero de este nivel!");
+                // Bonificación sencilla por completar (ejemplo): +100 por dificultad
+                score += 100 * (dificultadActual + 1);
+                return true;
+            }
+
+            Console.WriteLine("\nIntroduce tu jugada en formato: fila columna numero  (ej: 4 5 9)");
+            Console.WriteLine("Comandos: 'r' reiniciar nivel | 'e fila col' borrar celda | 'q' rendirse (termina aquí)");
+            Console.Write("Entrada: ");
+            string input = Console.ReadLine()?.Trim();
+            if (string.IsNullOrEmpty(input)) continue;
+
+            // Comando 'q' para rendirse
+            if (input.Equals("q", StringComparison.OrdinalIgnoreCase)) return false;
+
+            // Comando 'r' reiniciar nivel 
+            if (input.Equals("r", StringComparison.OrdinalIgnoreCase))
+            {
+                Array.Copy(solution, board, solution.Length);
+                IniciarSudoku();
+                Console.WriteLine("Nivel reiniciado (generado de nuevo). Pulsa Enter para continuar...");
+                Console.ReadLine();
+                continue;
+            }
+
+            // Comando borrar: "e fila col"
+            if (input.StartsWith("e ", StringComparison.OrdinalIgnoreCase))
+            {
+                var partesE = input.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (partesE.Length == 3 &&
+                    int.TryParse(partesE[1], out int rf) &&
+                    int.TryParse(partesE[2], out int cf) &&
+                    rf >= 1 && rf <= 9 && cf >= 1 && cf <= 9)
+                {
+                    int r = rf - 1, c = cf - 1;
+                    if (solution[r, c] == board[r, c] && board[r, c] != 0 && solution[r, c] != 0 && false)
+                    {
+                    }
+                    board[r, c] = 0;
+                    Console.WriteLine($"Celda {rf},{cf} borrada (si no era pista). Pulsa Enter...");
+                    Console.ReadLine();
+                }
+                else
+                {
+                    Console.WriteLine("Formato de borrar incorrecto. Ejemplo: e 4 5");
+                    Console.ReadLine();
+                }
+                continue;
+            }
+
+            // Intento de jugada: "fila col num"
+            var partes = input.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            if (partes.Length != 3 ||
+                !int.TryParse(partes[0], out int fila) ||
+                !int.TryParse(partes[1], out int col) ||
+                !int.TryParse(partes[2], out int num) ||
+                fila < 1 || fila > 9 || col < 1 || col > 9 || num < 1 || num > 9)
+            {
+                Console.WriteLine("Entrada inválida. Usa formato: fila col num (todos 1..9). Pulsa Enter...");
+                Console.ReadLine();
+                continue;
+            }
+
+            int rr = fila - 1, cc = col - 1;
+            // Si la celda ya tiene un valor visible (no 0) y coincide con solución, no permitir modificarla
+            if (board[rr, cc] != 0 && board[rr, cc] == solution[rr, cc])
+            {
+                Console.WriteLine("Esa celda ya es una pista o ya colocada correctamente. No puedes cambiarla. Pulsa Enter...");
+                Console.ReadLine();
+                continue;
+            }
+
+            // Comprobar correcto vs solución
+            if (solution[rr, cc] == num)
+            {
+                board[rr, cc] = num;
+                score += 10; // +10 por acierto
+                Console.WriteLine("¡Correcto! +10 puntos. Pulsa Enter...");
+                Console.ReadLine();
+            }
+            else
+            {
+                lives--;
+                score = Math.Max(0, score - 5); // -5 por fallo, no bajar de 0
+                Console.WriteLine($"Incorrecto. -1 vida. Vidas restantes: {lives}. Pulsa Enter...");
+                Console.ReadLine();
+                if (lives <= 0) return false;
+            }
+        }
+    }
+
+    // Comprueba si no hay celdas vacías
+    static bool TableroCompleto()
+    {
+        for (int r = 0; r < 9; r++)
+            for (int c = 0; c < 9; c++)
+                if (board[r, c] == 0) return false;
+        return true;
+    }
+
+    static void ImprimirTablero()
+    {
+        Console.WriteLine();
+        Console.WriteLine("   1 2 3   4 5 6   7 8 9");
+        Console.WriteLine("  -------------------------");
+        for (int r = 0; r < 9; r++)
+        {
+            Console.Write($"{r + 1} | ");
+            for (int c = 0; c < 9; c++)
+            {
+                if (board[r, c] == 0) Console.Write(". ");
+                else Console.Write(board[r, c] + " ");
+
+                if ((c + 1) % 3 == 0) Console.Write(" ");
+            }
+            Console.WriteLine();
+            if ((r + 1) % 3 == 0) Console.WriteLine("  -------------------------");
+        }
+    }
+}
