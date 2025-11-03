@@ -1,0 +1,301 @@
+import random
+import time
+import math
+import sys
+
+# Intentamos importar matplotlib; si falla, avisamos.
+try:
+    import matplotlib.pyplot as plt
+except Exception as e:
+    plt = None
+    print("Aviso: matplotlib no está disponible. Las gráficas no se generarán.")
+    print("Instala matplotlib con: python -m pip install matplotlib")
+    print("o: py -m pip install matplotlib")
+    print()
+
+# Implementación de ordenamientos
+def bubble_sort(arr):
+    a = arr.copy()
+    n = len(a)
+    for i in range(n):
+        swapped = False
+        for j in range(0, n - i - 1):
+            if a[j] > a[j+1]:
+                a[j], a[j+1] = a[j+1], a[j]
+                swapped = True
+        if not swapped:
+            break
+    return a
+
+def insertion_sort(arr):
+    a = arr.copy()
+    for i in range(1, len(a)):
+        key = a[i]
+        j = i - 1
+        while j >= 0 and a[j] > key:
+            a[j+1] = a[j]
+            j -= 1
+        a[j+1] = key
+    return a
+
+def selection_sort(arr):
+    a = arr.copy()
+    n = len(a)
+    for i in range(n):
+        min_idx = i
+        for j in range(i+1, n):
+            if a[j] < a[min_idx]:
+                min_idx = j
+        a[i], a[min_idx] = a[min_idx], a[i]
+    return a
+
+def quick_sort(arr):
+    if len(arr) <= 1:
+        return arr.copy()
+    pivot = arr[len(arr)//2]
+    left = [x for x in arr if x < pivot]
+    mid = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quick_sort(left) + mid + quick_sort(right)
+
+def merge_sort(arr):
+    if len(arr) <= 1:
+        return arr.copy()
+    mid = len(arr)//2
+    left = merge_sort(arr[:mid])
+    right = merge_sort(arr[mid:])
+    # merge
+    res = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:
+            res.append(left[i]); i += 1
+        else:
+            res.append(right[j]); j += 1
+    res.extend(left[i:]); res.extend(right[j:])
+    return res
+
+def heapify(a, n, i):
+    largest = i
+    l = 2*i + 1
+    r = 2*i + 2
+    if l < n and a[l] > a[largest]:
+        largest = l
+    if r < n and a[r] > a[largest]:
+        largest = r
+    if largest != i:
+        a[i], a[largest] = a[largest], a[i]
+        heapify(a, n, largest)
+
+def heap_sort(arr):
+    a = arr.copy()
+    n = len(a)
+    for i in range(n//2 - 1, -1, -1):
+        heapify(a, n, i)
+    for i in range(n-1, 0, -1):
+        a[0], a[i] = a[i], a[0]
+        heapify(a, i, 0)
+    return a
+
+# Hash sort simple
+def hash_sort(arr):
+    freq = {}
+    for x in arr:
+        freq[x] = freq.get(x, 0) + 1
+    keys = sorted(freq.keys())
+    res = []
+    for k in keys:
+        res.extend([k] * freq[k])
+    return res
+
+# Bucket sort 
+def bucket_sort(arr, bucket_count=10):
+    if not arr:
+        return []
+    mn, mx = min(arr), max(arr)
+    if mn == mx:
+        return arr.copy()
+    buckets = [[] for _ in range(bucket_count)]
+    range_ = mx - mn + 1
+    for v in arr:
+        idx = int(((v - mn) / range_) * bucket_count)
+        if idx == bucket_count: idx = bucket_count - 1
+        buckets[idx].append(v)
+    res = []
+    for b in buckets:
+        for i in range(1, len(b)):
+            key = b[i]
+            j = i - 1
+            while j >= 0 and b[j] > key:
+                b[j+1] = b[j]; j -= 1
+            b[j+1] = key
+        res.extend(b)
+    return res
+
+def counting_sort_for_radix(a, exp):
+    n = len(a)
+    out = [0]*n
+    count = [0]*10
+    for x in a:
+        count[(x//exp) % 10] += 1
+    for i in range(1,10):
+        count[i] += count[i-1]
+    for i in range(n-1, -1, -1):
+        d = (a[i]//exp) % 10
+        out[count[d]-1] = a[i]
+        count[d] -= 1
+    return out
+
+def radix_sort(arr):
+    if not arr:
+        return []
+    negatives = [abs(x) for x in arr if x < 0]
+    positives = [x for x in arr if x >= 0]
+    if positives:
+        maxp = max(positives)
+        exp = 1
+        a = positives
+        while maxp // exp > 0:
+            a = counting_sort_for_radix(a, exp)
+            exp *= 10
+        positives = a
+    if negatives:
+        maxn = max(negatives)
+        exp = 1
+        a = negatives
+        while maxn // exp > 0:
+            a = counting_sort_for_radix(a, exp)
+            exp *= 10
+        negatives = a
+    res = [-x for x in reversed(negatives)] + positives
+    return res
+
+# tamaños y escenarios
+methods = {
+    "Burbuja": bubble_sort,
+    "Inserción": insertion_sort,
+    "Selección": selection_sort,
+    "Quick": quick_sort,
+    "Merge": merge_sort,
+    "Heap": heap_sort,
+    "Hash": hash_sort,
+    "Bucket": bucket_sort,
+    "Radix": radix_sort
+}
+
+MAX_N_QUADRATIC = 10000 
+
+sizes = [100, 1000, 10000, 100000]
+orders = ["Aleatorio", "Ordenado", "Inverso"]
+
+results = {name: {} for name in methods.keys()}
+
+# función para crear el array según tipo
+def make_array(n, tipo, seed=12345):
+    random.seed(seed)
+    if tipo == "Ordenado":
+        return list(range(n))
+    elif tipo == "Inverso":
+        return list(range(n-1, -1, -1))
+    else:  # Aleatorio
+        return [random.randint(0, max(1, n*10)) for _ in range(n)]
+
+# determinamos qué algoritmos son considerados cuadráticos
+quadratic_algs = {"Burbuja", "Inserción", "Selección"}
+
+# Ejecutar pruebas
+print("=== INICIANDO BENCHMARK ===")
+for n in sizes:
+    print(f"\n--- Tamaño n = {n} ---")
+    for tipo in orders:
+        print(f" Escenario: {tipo}")
+        base_arr = make_array(n, tipo)
+        for name, func in methods.items():
+            key = (n, tipo)
+            # decidir si ejecutar o skipear
+            if name in quadratic_algs and n > MAX_N_QUADRATIC:
+                results[name][key] = None  # skipeado
+                print(f"  {name}: SKIPPED (n={n} > {MAX_N_QUADRATIC})")
+                continue
+            arr_copy = base_arr.copy()
+            start = time.perf_counter()
+            try:
+                out = func(arr_copy)
+            except Exception as e:
+                print(f"  {name}: ERROR durante ejecución -> {e}")
+                results[name][key] = None
+                continue
+            elapsed = time.perf_counter() - start
+            results[name][key] = elapsed
+            print(f"  {name}: {elapsed:.6f} seg")
+
+# Mostrar tabla de resultados en texto
+print("\n\n=== RESUMEN DE TIEMPOS (segundos) ===")
+for n in sizes:
+    print(f"\n--- Tamaño n = {n} ---")
+    for tipo in orders:
+        print(f"  Escenario: {tipo}")
+        # crear lista ordenada por tiempo (skipeados al final)
+        rows = []
+        for name in methods.keys():
+            t = results[name].get((n,tipo), None)
+            rows.append((name, t))
+        # separar válidos y skipeados
+        valid = [(a,t) for a,t in rows if t is not None]
+        skipped = [(a,t) for a,t in rows if t is None]
+        valid.sort(key=lambda x: x[1])
+        for a,t in valid:
+            print(f"    {a:10s} -> {t:.6f} s")
+        for a,_ in skipped:
+            print(f"    {a:10s} -> SKIPPED")
+        print("    Ranking (mejor a peor): " + ", ".join(a for a,_ in valid))
+
+# GRAFICAS: por tamaño, barras agrupadas por algoritmo y orden
+if plt is None:
+    print("\nmatplotlib no disponible — no se generarán gráficas.")
+    sys.exit(0)
+
+print("\nGenerando gráficas (ventanas).")
+
+# Para cada tamaño creamos una figura
+for n in sizes:
+    algs = list(methods.keys())
+    x = range(len(algs))
+    width = 0.25
+
+    # recoger tiempos para cada orden
+    times_ale = [results[a].get((n, "Aleatorio")) for a in algs]
+    times_ord = [results[a].get((n, "Ordenado")) for a in algs]
+    times_inv = [results[a].get((n, "Inverso")) for a in algs]
+
+    import numpy as np
+    t_ale = np.array([np.nan if v is None else v for v in times_ale])
+    t_ord = np.array([np.nan if v is None else v for v in times_ord])
+    t_inv = np.array([np.nan if v is None else v for v in times_inv])
+
+    fig, ax = plt.subplots(figsize=(14,6))
+    ax.bar([i - width for i in x], t_ale, width, label='Aleatorio')
+    ax.bar(x, t_ord, width, label='Ordenado')
+    ax.bar([i + width for i in x], t_inv, width, label='Inverso')
+
+    ax.set_title(f'Comparativa de algoritmos (n={n})')
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(algs, rotation=30, ha='right')
+    ax.set_ylabel('Tiempo (segundos)')
+    ax.legend()
+    ax.grid(axis='y', linestyle='--', alpha=0.6)
+
+    def annotate_bars(bars_values, xpos_offset):
+        for i, val in enumerate(bars_values):
+            if math.isnan(val): 
+                continue
+            ax.text(i + xpos_offset, val + max(0.0001, 0.01*max(1.0, val)), f"{val:.4f}", ha='center', fontsize=8)
+
+    annotate_bars(t_ale, -width)
+    annotate_bars(t_ord, 0.0)
+    annotate_bars(t_inv, width)
+
+    plt.tight_layout()
+    plt.show()
+
+print("\n--- Fin de la Comparacion ---")
