@@ -1,0 +1,56 @@
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+using namespace std;
+
+void radixNonNeg(vector<int>& arr) {
+    if (arr.empty()) return;
+    int maxv = *max_element(arr.begin(), arr.end());
+    int exp = 1;
+    int n = arr.size();
+    vector<int> output(n);
+    while (maxv / exp > 0) {
+        vector<int> count(10, 0);
+        for (int i = 0; i < n; ++i) {
+            int d = (arr[i] / exp) % 10;
+            count[d]++;
+        }
+        for (int i = 1; i < 10; ++i) count[i] += count[i-1];
+        for (int i = n-1; i >= 0; --i) {
+            int d = (arr[i] / exp) % 10;
+            output[count[d]-1] = arr[i];
+            count[d]--;
+        }
+        arr = output; // copiar
+        exp *= 10;
+    }
+}
+
+vector<int> radixSort(vector<int> arr) {
+    vector<int> negs, poss;
+    for (int x : arr) {
+        if (x < 0) negs.push_back(abs(x));
+        else poss.push_back(x);
+    }
+
+    radixNonNeg(poss);
+    radixNonNeg(negs);
+
+    vector<int> result;
+    for (int i = (int)negs.size() - 1; i >= 0; --i) result.push_back(-negs[i]);
+    result.insert(result.end(), poss.begin(), poss.end());
+    return result;
+}
+// Ejemplo
+int main() {
+    vector<int> a = {170, -45, 75, -90, 802, 24, 2, 66, -1, 0};
+    cout << "Original: ";
+    for (int x : a) cout << x << " ";
+    cout << "\n";
+    auto sorted = radixSort(a);
+    cout << "Ordenado (Radix Sort): ";
+    for (int x : sorted) cout << x << " ";
+    cout << "\n";
+    return 0;
+}
