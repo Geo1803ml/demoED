@@ -1,0 +1,61 @@
+#include <iostream>
+#include <string>
+#include "BST.h"
+using namespace std;
+
+void helpMenu() {
+    cout << "\n=== COMANDOS DISPONIBLES ===\n";
+    cout << " insert   -> insertar numero\n";
+    cout << " search   -> buscar numero\n";
+    cout << " delete   -> eliminar numero\n";
+    cout << " inorder  -> recorrido en orden\n";
+    cout << " preorder -> recorrido preorden\n";
+    cout << " postorder-> recorrido posorden\n";
+    cout << " height   -> altura del arbol\n";
+    cout << " size     -> numero de nodos\n";
+    cout << " export   -> guardar inorder en archivo\n";
+    cout << " help     -> mostrar comandos\n";
+    cout << " exit     -> salir\n";
+    cout << "============================\n\n";
+}
+
+int main() {
+    BST tree;
+    string cmd;
+
+    cout << "=== Gestor de Arbol Binario de Busqueda ===\n";
+    helpMenu();
+
+    while (true)
+    {
+        cout << "> ";
+        cin >> cmd;
+
+        if (cmd == "insert") {
+            int x; cin >> x;
+            tree.insert(x);
+        }
+        else if (cmd == "search") {
+            int x; cin >> x;
+            tree.search(x);
+        }
+        else if (cmd == "delete") {
+            int x; cin >> x;
+            tree.deleteKey(x);
+        }
+        else if (cmd == "inorder") tree.inorder();
+        else if (cmd == "preorder") tree.preorder();
+        else if (cmd == "postorder") tree.postorder();
+        else if (cmd == "height") cout << "Altura: " << tree.height() << "\n";
+        else if (cmd == "size") cout << "Tamaño: " << tree.size() << "\n";
+        else if (cmd == "export") {
+            string f; cin >> f;
+            tree.exportInorder(f);
+        }
+        else if (cmd == "help") helpMenu();
+        else if (cmd == "exit") break;
+        else cout << "Comando no reconocido. Usa 'help'.\n";
+    }
+
+    return 0;
+}
